@@ -5,3 +5,5 @@ yarn-error.log
 yarn.lock
 arch-dev-environment.json
 Log
+package-lock.json
+front-test

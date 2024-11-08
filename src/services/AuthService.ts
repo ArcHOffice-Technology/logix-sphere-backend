@@ -1,21 +1,101 @@
-import { ILogMenssage } from '@archoffice/logix-sphere-framework/src/cross/Interface/ILogMenssage';
+import { ILogMenssage } from '@archoffice/archframework-logix-sphere/src/cross/Interface/ILogMenssage';
+import * as bcrypt from 'bcryptjs';
 import { userData } from '../models/userData';
 import { userCredential } from '../types/userCredential';
 import { FkService } from './FkService';
+import { v4 as uuidv4 } from 'uuid';
+import { UserRegisterDTO } from '../DTO/UserRegisterDTO';
+import { UserLoginDTO } from '../DTO/UserLoginDTO';
+import { PasswordResetDTO } from '../DTO/PasswordResetDto';
 
 export class AuthService {
 
     private loginAttempts: { [email: string]: number } = {};
-
+    private resetTokens: { [email: string]: { token: string; expires: Date } } = {};
     private fk: FkService;
 
     constructor(fkService: FkService) {
         this.fk = fkService;
     }
 
-    async registerUser(userData: Omit<userData, 'user_id' | 'created_at' | 'updated_at'>): Promise<string> {
+    // Função para enviar o token de recuperação de senha
+    // async sendPasswordResetToken(email: string): Promise<string> {
+    //     const sqlPostgrees = await this.fk.getSQL();
+    //     const log = await this.fk.getLog();
+
+    //     const user = await this.getUserID(sqlPostgrees, email);
+    //     if (!user) {
+    //         await this.logAttempt(log, email, '', 'warn', 'Tentativa de recuperação de senha para e-mail inexistente');
+    //         return 'Usuário não encontrado.';
+    //     }
+
+    //     const token = this.generateToken();
+    //     const expires = new Date(Date.now() + 30 * 60 * 1000);
+    //     this.resetTokens[email] = { token, expires };
+
+    //     const emailSent = await this.fk.sendEmail(email, 'Recuperação de Senha', `Seu token de recuperação é: ${token}`);
+    //     if (emailSent) {
+    //         await this.logAttempt(log, email, '', 'success', 'Token de recuperação de senha enviado com sucesso');
+    //         return 'Token de recuperação de senha enviado com sucesso para o seu e-mail.';
+    //     } else {
+    //         await this.logAttempt(log, email, '', 'warn', 'Falha ao enviar o token de recuperação de senha');
+    //         return 'Falha ao enviar o e-mail de recuperação de senha.';
+    //     }
+    // }
+
+    private generateToken(): string {
+        return uuidv4(); 
+    }
+
+    async verifyPasswordResetToken(email: string, token: string): Promise<boolean> {
+        const tokenData = this.resetTokens[email];
+        if (tokenData && tokenData.token === token && tokenData.expires > new Date()) {
+            return true;
+        }
+        return false;
+    }
+
+    async resetPassword(resetData: PasswordResetDTO): Promise<string> {
+        const { email, token, newPassword } = resetData;
         const sqlPostgrees = await this.fk.getSQL();
         const log = await this.fk.getLog();
+
+        if (!this.isPasswordValid(resetData.newPassword)) {
+            return 'A senha deve conter pelo menos uma letra maiúscula, uma letra minúscula, um número, um caractere especial e ter no mínimo 8 caracteres.';
+        }
+
+        if (await this.verifyPasswordResetToken(email, token)) {
+
+            const hashedPassword = await this.hashPassword(newPassword);
+            await sqlPostgrees?.update('users', { password: hashedPassword }, { email });
+
+            delete this.resetTokens[email];
+
+            await this.logAttempt(log, email, '', 'success', 'Senha redefinida com sucesso');
+            return 'Senha redefinida com sucesso.';
+        } else {
+            await this.logAttempt(log, email, '', 'warn', 'Token de recuperação de senha inválido ou expirado');
+            return 'Token inválido ou expirado.';
+        }
+    }
+
+    private isPasswordValid(password: string): boolean {
+        const hasUpperCase = /[A-Z]/.test(password);
+        const hasLowerCase = /[a-z]/.test(password);
+        const hasNumber = /\d/.test(password);
+        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+        const isMinLength = password.length >= 8;
+
+        return hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar && isMinLength;
+    }
+
+    async registerUser(userData: UserRegisterDTO): Promise<string> {
+        const sqlPostgrees = await this.fk.getSQL();
+        const log = await this.fk.getLog();
+
+        if (!this.isPasswordValid(userData.password)) {
+            return 'A senha deve conter pelo menos uma letra maiúscula, uma letra minúscula, um número, um caractere especial e ter no mínimo 8 caracteres.';
+        }
 
         const existingUser = await this.getUser(sqlPostgrees, userData.email);
         if (existingUser.length > 0) {
@@ -33,7 +113,7 @@ export class AuthService {
         }
     }
 
-    private async createUser(sqlPostgrees: any, userData: Omit<userData, 'user_id' | 'created_at' | 'updated_at'>): Promise<number | null> {
+    private async createUser(sqlPostgrees: any, userData: UserRegisterDTO): Promise<number | null> {
         const query = `
             INSERT INTO users (
                 name, last_name, date_of_birth, user_type, email, password, active, 
@@ -46,38 +126,40 @@ export class AuthService {
         const createdAt = new Date().toISOString();
         const values = [
             userData.name,
-            userData.last_name || null,
-            userData.date_of_birth || null,
-            userData.user_type || null,
+            userData.lastName,
+            userData.dateOfBirth,
+            userData.userType,
             userData.email,
             hashedPassword,
             userData.active,
-            userData.start_date,
-            userData.end_date || null,
-            userData.created_by || null,
+            userData.startDate,
+            userData.endDate,
+            userData.createdBy,
             createdAt,
-            userData.cost_model_id || null,
-            userData.user_type_id || null
+            userData.costModelId,
+            userData.userTypeId
+            
         ];
 
         const result = await sqlPostgrees?.executeQuery(query, values);
         return result && result[0] ? result[0].user_id : null;
     }
     private async hashPassword(password: string): Promise<string> {
-        // Implementação para hash da senha usando uma biblioteca como bcrypt
-        // Exemplo: return bcrypt.hash(password, 10);
-        return password; // Placeholder, substituir por lógica de hash
+        const salt = await bcrypt.genSalt(10);
+        return await bcrypt.hash(password,salt); 
     }
 
     async login(
-        email: string,
-        password: string,
+        credentials: UserLoginDTO,
         ipAddress: string,
         deviceInfo: string
     ): Promise<string | undefined> {
+        const { email, password } = credentials;
         const sqlPostgresSecurity = await this.fk.getSecurity();
         const sqlPostgrees = await this.fk.getSQL();
         const log = await this.fk.getLog();
+
+        
 
         const idUser = await this.getUserID(sqlPostgrees, email);
         
@@ -87,7 +169,7 @@ export class AuthService {
             return 'Usuário não encontrado';
         }
 
-        const token = await this.authenticateUser(sqlPostgresSecurity, email, password);
+        const token = await this.authenticateUser(sqlPostgresSecurity, sqlPostgrees, email, password);
         if (!token) {
             return await this.handleFailedLogin(sqlPostgrees, log, email, ipAddress, deviceInfo, idUser);
         } else {
@@ -96,29 +178,48 @@ export class AuthService {
             await this.resetLoginAttempts(email);
             await this.logAttempt(log, email, ipAddress, 'success', 'Login bem-sucedido');
             await this.updateLoginActivity(sqlPostgrees, user.user_id, ipAddress, deviceInfo, true, null);
-            console.log("Token gerado:", token);
             return token;
         }
     }
 
-    async getUserID(sqlPostgrees: any, email: string): Promise<number> {
+    private async getUserID(sqlPostgrees: any, email: string): Promise<number | undefined> {
         const query = `SELECT * FROM users WHERE email = $1`;
         var result = await sqlPostgrees?.executeQuery(query, [email]) as userData[];
 
-        return result[0].user_id;
+        return result[0]?.user_id;
     }
 
-    async getUser(sqlPostgrees: any, email: string): Promise<userData[]> {
+    private async getUser(sqlPostgrees: any, email: string): Promise<userData[]> {
         const query = `SELECT * FROM users WHERE email = $1`;
         return await sqlPostgrees?.executeQuery(query, [email]) as userData[];
     }
 
-    async authenticateUser(sqlPostgresSecurity: any, email: string, password: string): Promise<string | null> {
-        const login: userCredential = { username: email, password };
-        return sqlPostgresSecurity?.getValidationLogin(login) || null;
+    private async authenticateUser(sqlPostgresSecurity: any, sqlPostgrees: any, email: string, password: string): Promise<string | null> {
+        const userArray = await this.getUser(sqlPostgrees, email);
+        if (userArray === null  || userArray === undefined) {
+            return null;
+        }
+        const user = userArray[0];
+
+        if(user.active === false){
+            return "Usuario bloqueado,  por favor reset a senha!";
+        }else{
+            if (!user) {
+                return null;
+            }
+    
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if (isPasswordValid) {
+                const login: userCredential = { username: email, password: user.password };
+                const token = await sqlPostgresSecurity?.getValidationLogin(login);
+                return token;
+            } else {
+                return null;
+            }
+        }
     }
 
-    async handleFailedLogin(sqlPostgrees: any, log: any, email: string, ipAddress: string, deviceInfo: string, userId: number) {
+    private async handleFailedLogin(sqlPostgrees: any, log: any, email: string, ipAddress: string, deviceInfo: string, userId: number) {
         this.loginAttempts[email] = (this.loginAttempts[email] || 0) + 1;
         const remainingAttempts = 3 - this.loginAttempts[email];
         const failureReason = 'Senha incorreta';
@@ -134,7 +235,7 @@ export class AuthService {
         }
     }
 
-    async logAttempt(log: any, email: string, ipAddress: string, level: 'warn' | 'success', message: string) {
+    private async logAttempt(log: any, email: string, ipAddress: string, level: 'warn' | 'success', message: string) {
         const logMessage: ILogMenssage = {
             message: `Usuário: ${email}. ${message} do IP ${ipAddress}.`,
             level,
@@ -144,7 +245,7 @@ export class AuthService {
         await log?.saveLog(logMessage,"Logs - Login");
     }
 
-    async updateLoginActivity(sqlPostgrees: any, userId: number, ipAddress: string, deviceInfo: string, isSuccess: boolean, failureReason: string | null) {
+    private async updateLoginActivity(sqlPostgrees: any, userId: number, ipAddress: string, deviceInfo: string, isSuccess: boolean, failureReason: string | null) {
         const activityData = {
             login_time: new Date(),
             ip_address: ipAddress,
@@ -156,11 +257,11 @@ export class AuthService {
         await sqlPostgrees?.update('user_login_activities', activityData, { user_id: userId });
     }
 
-    async lockUserAccount(sqlPostgrees: any, email: string) {
+    private async lockUserAccount(sqlPostgrees: any, email: string) {
         await sqlPostgrees?.update('users', { active: false }, { email });
     }
 
-    async resetLoginAttempts(email: string) {
+    private async resetLoginAttempts(email: string) {
         delete this.loginAttempts[email];
     }
 

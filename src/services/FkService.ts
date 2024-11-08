@@ -1,4 +1,4 @@
-import { ArchFramework } from '@archoffice/logix-sphere-framework/src/shortcuts/arch-framework';
+import { ArchFramework } from '@archoffice/archframework-logix-sphere/src/shortcuts/arch-framework';
 
 export class FkService {
     private framework: ArchFramework;
@@ -15,7 +15,7 @@ export class FkService {
         return await this.framework.getLogInstance(); 
     }
 
-    public async getSQL() {
+    public async getSQL(){
         return await this.framework.getSQLInstance(); 
     }
 

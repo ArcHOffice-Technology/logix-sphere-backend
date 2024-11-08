@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/AuthService';
 import { FkService } from '../services/FkService';
+import { UserLoginDTO } from '../DTO/UserLoginDTO';
 
 export class AuthController {
     private authService: AuthService;
@@ -27,7 +28,9 @@ export class AuthController {
     async login(req: Request, res: Response): Promise<Response> {
         try {
             const { email, password, ipAddress, deviceInfo } = req.body;
-            const token = await this.authService.login(email, password, ipAddress, deviceInfo);
+            debugger;
+            const login: UserLoginDTO = { email, password };
+            const token = await this.authService.login(login, ipAddress, deviceInfo);
             
             if (token) {
                 return res.status(200).json({ token });

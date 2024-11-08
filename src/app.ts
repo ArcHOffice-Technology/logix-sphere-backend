@@ -1,13 +1,16 @@
 import { Router } from 'express';
-import { ArchFramework } from '@archoffice/logix-sphere-framework/src/shortcuts/arch-framework';
+import cors from 'cors';
+import { ArchFramework } from '@archoffice/archframework-logix-sphere/src/shortcuts/arch-framework';
 import path from 'path';
-import  routerAuth  from './router/RouterAuth';
+import routerAuth from './router/RouterAuth';
 
 const express = require('express');
-
 const router = Router();
 const app = express();
+app.use(express.json());
 
+// Libera o CORS para todas as origens
+app.use(cors());
 
 interface FrameworkInstance {
     getEnvInstance(file: string): Promise<void>;
@@ -36,7 +39,7 @@ interface FrameworkInstance {
                 level: "info",
                 timestamp: new Date(),
                 metadata: null
-            });
+            }, "Log_Init_BackEnd");
         } else {
             console.error('Não foi possível criar a instância do ArchFramework');
         }
@@ -52,7 +55,7 @@ interface FrameworkInstance {
         };
 
         if (log) {
-            log.saveLog(logMessage);
+            log.saveLog(logMessage, "Log_Init_BackEnd");
         } else {
             console.error('Erro ao carregar a instância do framework e ao inicializar o log:', error);
             console.error(logMessage);
@@ -62,6 +65,10 @@ interface FrameworkInstance {
 
 app.use('/auth', routerAuth);
 
+// Inicia o servidor na porta 3001
+const PORT = 3001;
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
 
 export default router;
-
