@@ -6,10 +6,12 @@ const routerAuth = express.Router();
 const fkService = new FkService();
 const authController = new AuthController(fkService);
 
-// Rota para registro de usuário
 routerAuth.post('/register', (req, res) => authController.registerUser(req, res));
 
-// Rota para login de usuário
 routerAuth.post('/login', (req, res) => authController.login(req, res));
+
+routerAuth.post('/send-password-reset-token', (req, res) => authController.sendPasswordResetToken(req, res));
+
+routerAuth.post('/reset-password', (req, res) => authController.resetPassword(req, res));
 
 export default routerAuth;

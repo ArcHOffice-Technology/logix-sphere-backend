@@ -9,7 +9,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@archoffice/archframework-logix-sphere": "^1.0.0",
+    "@archoffice/logix-sphere-framework": "^1.0.1",
     "@types/bcrypt": "^5.0.2",
     "ba-express-backend": "file:",
     "bcryptjs": "^2.4.3",

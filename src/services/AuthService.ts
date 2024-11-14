@@ -1,12 +1,12 @@
-import { ILogMenssage } from '@archoffice/archframework-logix-sphere/src/cross/Interface/ILogMenssage';
+
+import { ILogMenssage } from '@archoffice/logix-sphere-framework/src/cross/Interface/ILogMenssage';
 import * as bcrypt from 'bcryptjs';
-import { userData } from '../models/userData';
-import { userCredential } from '../types/userCredential';
-import { FkService } from './FkService';
 import { v4 as uuidv4 } from 'uuid';
-import { UserRegisterDTO } from '../DTO/UserRegisterDTO';
-import { UserLoginDTO } from '../DTO/UserLoginDTO';
 import { PasswordResetDTO } from '../DTO/PasswordResetDto';
+import { UserLoginDTO } from '../DTO/UserLoginDTO';
+import { UserRegisterDTO } from '../DTO/UserRegisterDTO';
+import { userData } from '../models/userData';
+import { FkService } from './FkService';
 
 export class AuthService {
 
@@ -18,30 +18,41 @@ export class AuthService {
         this.fk = fkService;
     }
 
-    // Função para enviar o token de recuperação de senha
-    // async sendPasswordResetToken(email: string): Promise<string> {
-    //     const sqlPostgrees = await this.fk.getSQL();
-    //     const log = await this.fk.getLog();
+    async sendPasswordResetToken(email: string): Promise<string> {
+        const sqlPostgrees = await this.fk.getSQL();
+        const log = await this.fk.getLog();
+        const emailSend = await this.fk.getEmail();
+        const env = await this.fk.getEnv('../../arch-dev-environment.json');
 
-    //     const user = await this.getUserID(sqlPostgrees, email);
-    //     if (!user) {
-    //         await this.logAttempt(log, email, '', 'warn', 'Tentativa de recuperação de senha para e-mail inexistente');
-    //         return 'Usuário não encontrado.';
-    //     }
+        const fromEmail = env.getValueEnv('GSUITE_USER_EMAIL')
+        console.log(fromEmail);
 
-    //     const token = this.generateToken();
-    //     const expires = new Date(Date.now() + 30 * 60 * 1000);
-    //     this.resetTokens[email] = { token, expires };
+        const user = await this.getUserID(sqlPostgrees, email);
+        if (!user) {
+            await this.logAttempt(log, email, '', 'warn', 'Tentativa de recuperação de senha para e-mail inexistente');
+            return 'Usuário não encontrado.';
+        }
 
-    //     const emailSent = await this.fk.sendEmail(email, 'Recuperação de Senha', `Seu token de recuperação é: ${token}`);
-    //     if (emailSent) {
-    //         await this.logAttempt(log, email, '', 'success', 'Token de recuperação de senha enviado com sucesso');
-    //         return 'Token de recuperação de senha enviado com sucesso para o seu e-mail.';
-    //     } else {
-    //         await this.logAttempt(log, email, '', 'warn', 'Falha ao enviar o token de recuperação de senha');
-    //         return 'Falha ao enviar o e-mail de recuperação de senha.';
-    //     }
-    // }
+        const optionsEmail ={
+            to: email,
+            subject:  "Teste de envio de e-mail",
+            body :"Este é um e-mail de teste enviado através do ArchEmail.",
+            email: fromEmail
+        }
+        
+        const token = this.generateToken();
+        const expires = new Date(Date.now() + 30 * 60 * 1000);
+        this.resetTokens[email] = { token, expires };
+
+        const emailSent = await emailSend.sendEmail(optionsEmail);
+        if (emailSent) {
+            await this.logAttempt(log, email, '', 'success', 'Token de recuperação de senha enviado com sucesso');
+            return 'Token de recuperação de senha enviado com sucesso para o seu e-mail.';
+        } else {
+            await this.logAttempt(log, email, '', 'warn', 'Falha ao enviar o token de recuperação de senha');
+            return 'Falha ao enviar o e-mail de recuperação de senha.';
+        }
+    }
 
     private generateToken(): string {
         return uuidv4(); 
@@ -151,10 +162,8 @@ export class AuthService {
 
     async login(
         credentials: UserLoginDTO,
-        ipAddress: string,
-        deviceInfo: string
     ): Promise<string | undefined> {
-        const { email, password } = credentials;
+        const { email, password, ipAddress, deviceInfo } = credentials;
         const sqlPostgresSecurity = await this.fk.getSecurity();
         const sqlPostgrees = await this.fk.getSQL();
         const log = await this.fk.getLog();
@@ -169,7 +178,7 @@ export class AuthService {
             return 'Usuário não encontrado';
         }
 
-        const token = await this.authenticateUser(sqlPostgresSecurity, sqlPostgrees, email, password);
+        const token = await this.authenticateUser(sqlPostgresSecurity, sqlPostgrees, email, password, ipAddress, deviceInfo);
         if (!token) {
             return await this.handleFailedLogin(sqlPostgrees, log, email, ipAddress, deviceInfo, idUser);
         } else {
@@ -194,7 +203,7 @@ export class AuthService {
         return await sqlPostgrees?.executeQuery(query, [email]) as userData[];
     }
 
-    private async authenticateUser(sqlPostgresSecurity: any, sqlPostgrees: any, email: string, password: string): Promise<string | null> {
+    private async authenticateUser(sqlPostgresSecurity: any, sqlPostgrees: any, email: string, password: string, ipAddress: string, deviceInfo: string): Promise<string | null> {
         const userArray = await this.getUser(sqlPostgrees, email);
         if (userArray === null  || userArray === undefined) {
             return null;
@@ -210,7 +219,7 @@ export class AuthService {
     
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (isPasswordValid) {
-                const login: userCredential = { username: email, password: user.password };
+                const login = { email: email, password: user.password };
                 const token = await sqlPostgresSecurity?.getValidationLogin(login);
                 return token;
             } else {

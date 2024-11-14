@@ -1,0 +1,50 @@
+[
+    {"key":"FORCE", "value":"TRUE"},
+    {"key":"PORT", "value":"3011"},
+    {"key":"ENVIRONMENT", "value":"DEV"},
+  
+    {"key":"PG_DB_HOST", "value":"192.168.31.171"},
+    {"key":"PG_DB_PORT", "value":"5432"},
+    {"key":"PG_DB_USER", "value":"ba_user_one"},
+    {"key":"PG_DB_PWD", "value":"B@#xpr3xx"},
+    {"key":"PG_DB_DATABASE", "value":"logix_sphere_db"},
+    {"key":"PG_DB_SSL", "value":"require"},
+    {"key":"IS_TEST_ENV", "value":"true"},
+
+    {"key":"GSUITE_CLIENT_ID", "value":""},
+    {"key":"GSUITE_CLIENT_SECRET", "value":""},
+    {"key":"GSUITE_REFRESH_TOKEN", "value":""},
+    {"key":"GSUITE_USER_EMAIL", "value":""},
+  
+    {"key":"SEC_PG_DB_HOST", "value":"192.168.31.171"},
+    {"key":"SEC_PG_DB_PORT", "value":"5432"},
+    {"key":"SEC_PG_DB_USER", "value":"ba_user_one"},
+    {"key":"SEC_PG_DB_PWD", "value":"B@#xpr3xx"},
+    {"key":"SEC_PG_DB_DATABASE", "value":"logix_sphere_db"},
+    {"key":"SEC_PG_DB_SSL", "value":"require"},
+    {"key":"SEC_PG_DB_SSL", "value":"true"},
+  
+    {"key":"TOG_PG_DB_HOST", "value":"db-url-connection"},
+    {"key":"TOG_PG_DB_PORT", "value":"25060"},
+    {"key":"TOG_PG_DB_USER", "value":"application"},
+    {"key":"TOG_PG_DB_PWD", "value":"password"},
+    {"key":"TOG_PG_DB_DATABASE", "value":"toggles"},
+    {"key":"TOG_PG_DB_SSL", "value":"require"},
+  
+    {"key":"TOKEN_KEY", "value":"b4b32a2686030f59f72371724d8dee4713129e0e6858d97ec6bc3c650425271d"},
+    {"key":"TOKEN_EXPIRATION_IN_HOURS", "value":"4"},
+  
+    {"key":"NO-DB-LOG", "value":"true"},
+    {"key":"LOG-MONGO-IP", "value":"mongodb-ip"},
+    {"key":"LOG-MONGO-USR", "value":"apiapp"},
+    {"key":"LOG-MONGO-PWD", "value":"password"},
+    {"key":"LOG-MONGO-DB", "value":"MongoLog_Ba"},
+    {"key":"LOG-MONGO-PORT", "value":"27017"},
+    {"key":"MONGO-IP", "value":"127.0.0.1"},
+    {"key":"MONGO-USR", "value":"user"},
+    {"key":"MONGO-PWD", "value":"password"},
+    {"key":"MONGO-DB", "value":"database-name"},
+    {"key":"MONGO-PORT", "value":"27017"},
+    {"key":"------", "value":"-----"},
+    {"key":"-----", "value":"----"}
+  ]
